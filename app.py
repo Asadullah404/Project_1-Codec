@@ -10,53 +10,52 @@ if not os.path.exists(MODELS_CACHE_DIR):
     print(f"Created models cache directory: {MODELS_CACHE_DIR}")
 
 # --- Package Installation ---
-# ADDED 'gdown' for automatic model downloading.
-REQUIRED_PACKAGES = [
-    'PyQt5', 'torch', 'torchaudio', 'numpy', 'pyaudio', 
-    'scipy', 'librosa', 'matplotlib', 'pystoi', 'pesq', 'soundfile', 
-    'dac', 'einops', 'pandas', 'gdown'
-]
+REQUIRED_PACKAGES = {
+    'PyQt5': 'PyQt5',
+    'torch': 'torch==2.1.0',
+    'torchaudio': 'torchaudio==2.1.0', 
+    'numpy': 'numpy',
+    'pyaudio': 'pyaudio',
+    'scipy': 'scipy',
+    'librosa': 'librosa',
+    'matplotlib': 'matplotlib',
+    'pystoi': 'pystoi',
+    'pesq': 'pesq[speechmetrics]', 
+    'soundfile': 'soundfile',
+    'dac': 'descript-audio-codec', 
+    'einops': 'einops',
+    'pandas': 'pandas',
+    'gdown': 'gdown',
+    'transformers': 'transformers==4.35.0', 
+    'accelerate': 'accelerate==0.24.1', 
+    'safetensors': 'safetensors',
+    'tokenizers': 'tokenizers==0.14.1', 
+    'huggingface-hub': 'huggingface-hub==0.17.3', 
+    'opuslib': 'opuslib', # <-- Using opuslib as requested
+    # sounddevice is not needed by pyaudio
+}
+
 
 def check_and_install_packages():
-    """Checks and installs required packages."""
-    print("Checking required packages...")
+    """Checks and installs required packages, ensuring specific versions."""
+    print("Checking and installing required packages...")
     
-    # Install required packages
-    for package in REQUIRED_PACKAGES:
-        module_name = package
-        # Map package names to their importable module names where different
-        if package == 'PyQt5': module_name = 'PyQt5'
-        if package == 'pystoi': module_name = 'pystoi'
-        if package == 'pesq': module_name = 'pesq'
-        if package == 'dac': module_name = 'dac'
-        if package == 'pandas': module_name = 'pandas'
-        if package == 'gdown': module_name = 'gdown' # Added gdown check
+    for module_name, install_string in REQUIRED_PACKAGES.items():
         
-        spec = importlib.util.find_spec(module_name)
-        if spec is None:
-            print(f"Package '{package}' not found. Attempting to install...")
-            try:
-                if package == 'pesq':
-                    # Special installation for pesq dependencies
-                    subprocess.check_call([sys.executable, "-m", "pip", "install", "pesq[speechmetrics]"])
-                elif package == 'dac':
-                    # Special installation for DAC
-                    subprocess.check_call([sys.executable, "-m", "pip", "install", "descript-audio-codec"])
-                else:
-                    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-                print(f"Successfully installed '{package}'.")
-            except subprocess.CalledProcessError as e:
-                print(f"ERROR: Failed to install '{package}'. Error: {e}")
-                if package not in ['einops']: # Some packages are optional
-                    sys.exit(1)
-            except Exception as e:
-                print(f"ERROR: An unexpected error occurred during installation of '{package}'. Error: {e}")
-                if package not in ['einops']:
-                    sys.exit(1)
-        else:
-            print(f"{package} is already installed.")
+        print(f"Ensuring package '{install_string}' is installed...")
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", install_string])
+            print(f"Successfully processed '{install_string}'.")
+        except subprocess.CalledProcessError as e:
+            print(f"ERROR: Failed to install '{install_string}'. Error: {e}")
+            if module_name not in ['einops']: 
+                sys.exit(1)
+        except Exception as e:
+            print(f"ERROR: An unexpected error occurred during installation of '{install_string}'. Error: {e}")
+            if module_name not in ['einops']:
+                sys.exit(1)
 
-# --- START: New Model Downloader ---
+# --- Model Downloader ---
 def check_and_download_models():
     """
     Checks for required model files and downloads them from Google Drive
@@ -64,11 +63,15 @@ def check_and_download_models():
     """
     print("Checking for required model files...")
     
-    # Dictionary of filenames and their Google Drive File IDs
     models_to_check = {
-        "best_model.pth": "1IOggsjQ-AtmBGUhXVrrmgerb45zGHxFk",
-        "latest_model.pth": "1ru7ixDdkZiEDgQy5ss8s8gSoPupAxZj-",
-        "tiny_transformer_best.pt": "16ChGzs6MR8PcGHYmFKkW_WsaWEUjegsn"
+        # "best_model.pth": "1IOggsjQ-AtmBGUhXVrrmgerb45zGHxFk",
+        # "latest_model.pth": "1ru7ixDdkZiEDgQy5ss8s8gSoPupAxZj-",
+        "tiny_transformer_best.pt": "16ChGzs6MR8PcGHYmFKkW_WsaWEUjegsn",
+        "opus-realtime-10-framesize.pth.pth" : "1YGV3Smt-h6qR-cguMbLVZp9wZeUKUhMV",
+        "libopus-0.dll" : "1gSPw2fqC5P5VWU1yl3wNVEn_VyWmhXvG",
+        "opus.dll" : "1apJ6vx4gj4Wm5ZjrExR0bMRSaImyBL6D",
+        "final_model_realtime.pt" : "1VSe1T5dmaN0yUSMWnESmSPtb7cFT4GEO"
+
     }
 
     for filename, file_id in models_to_check.items():
@@ -77,7 +80,6 @@ def check_and_download_models():
             print(f"(This may take a moment... ID: {file_id})")
             
             try:
-                # Use gdown to download using the file ID
                 subprocess.check_call([
                     sys.executable, "-m", "gdown",
                     file_id, "-O", filename
@@ -85,13 +87,9 @@ def check_and_download_models():
                 print(f"Successfully downloaded '{filename}'.")
             except subprocess.CalledProcessError as e:
                 print(f"ERROR: Failed to download '{filename}'. Error: {e}")
-                print("Please ensure 'gdown' is installed (`pip install gdown`) and try again.")
-                print(f"Alternatively, manually download the file from Google Drive and place it as '{filename}' in the app folder.")
-                sys.exit(1) # Exit if critical models are missing
+                sys.exit(1) 
             except FileNotFoundError:
-                # This happens if gdown wasn't successfully installed
                 print("ERROR: The 'gdown' package was not found.")
-                print("Please install it manually: `pip install gdown`")
                 sys.exit(1)
         else:
             print(f"Found existing model: '{filename}'")
@@ -114,11 +112,16 @@ print("="*70)
 print("Setup complete! Starting application...")
 print("="*70 + "\n")
 
+
+# --- REMOVED: PYOGG PATH HACK ---
+
+
 try:
     from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QTabWidget
+    # These imports will now happen *after* the path is fixed
     from streaming_tab import StreamingTab
     from evaluation_tab import EvaluationTab
-    from detailed_analysis_tab import DetailedAnalysisTab # Added new tab import
+    from detailed_analysis_tab import DetailedAnalysisTab 
 except ImportError as e:
     print(f"Failed to import a required module: {e}")
     print("Please ensure all packages from REQUIRED_PACKAGES are installed.")
@@ -130,7 +133,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Ultra Low-Latency Audio Codec Suite")
-        self.setGeometry(100, 100, 1050, 800) # Increased size for detailed analysis tab
+        self.setGeometry(100, 100, 1050, 800) 
 
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -141,11 +144,11 @@ class MainWindow(QMainWindow):
 
         self.streaming_tab = StreamingTab()
         self.evaluation_tab = EvaluationTab()
-        self.detailed_analysis_tab = DetailedAnalysisTab() # New tab instance
+        self.detailed_analysis_tab = DetailedAnalysisTab() 
 
         self.tabs.addTab(self.streaming_tab, "Real-Time Streaming")
         self.tabs.addTab(self.evaluation_tab, "Model Evaluation")
-        self.tabs.addTab(self.detailed_analysis_tab, "Detailed Comparative Analysis") # New tab added
+        self.tabs.addTab(self.detailed_analysis_tab, "Detailed Comparative Analysis") 
         
         # Show available codecs in status bar
         self.statusBar().showMessage(self._get_codec_status())
@@ -165,15 +168,21 @@ class MainWindow(QMainWindow):
             status_parts.append("Pandas ✓")
         except:
             status_parts.append("Pandas ✗")
+        
+        # --- MODIFIED OPUSLIB CHECK ---
+        try:
+            import opuslib
+            status_parts.append("Opus(opuslib) ✓")
+        except Exception: # Catch any error
+            status_parts.append("Opus(opuslib) ✗")
+        # --- END MODIFIED OPUSLIB CHECK ---
             
         return "System Status: " + " | ".join(status_parts)
         
     def closeEvent(self, event):
         """Ensures background threads are terminated when the application is closed."""
         print("Closing application...")
-        # --- START FIX: Call the new comprehensive stop method ---
         self.streaming_tab.stop_all_threads()
-        # --- END FIX ---
         event.accept()
 
 if __name__ == '__main__':
@@ -181,4 +190,3 @@ if __name__ == '__main__':
     main_window = MainWindow()
     main_window.show()
     sys.exit(app.exec_())
-
