@@ -1,10 +1,32 @@
-# import os
-# import ctypes
+import os
+import ctypes
 
-# dll_path = os.path.join(os.path.dirname(__file__), "opus.dll")
-# ctypes.WinDLL(dll_path)  # load the DLL
+# Add current directory to DLL search path so opuslib can find opus.dll
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if hasattr(os, 'add_dll_directory'):
+    # Python 3.8+ - recommended way
+    os.add_dll_directory(current_dir)
+else:
+    # Python < 3.8 - add to PATH
+    os.environ['PATH'] = current_dir + os.pathsep + os.environ.get('PATH', '')
 
-# print("DLL loaded successfully")
+# Also try to preload the DLL explicitly
+dll_path = os.path.join(current_dir, "opus.dll")
+if os.path.exists(dll_path):
+    try:
+        ctypes.WinDLL(dll_path)  # load the DLL
+        print("DLL loaded successfully")
+    except Exception as e:
+        print(f"Warning: Could not preload opus.dll: {e}")
+else:
+    # Try libopus-0.dll as alternative
+    alt_dll_path = os.path.join(current_dir, "libopus-0.dll")
+    if os.path.exists(alt_dll_path):
+        try:
+            ctypes.WinDLL(alt_dll_path)
+            print("Alternative DLL (libopus-0.dll) loaded successfully")
+        except Exception as e:
+            print(f"Warning: Could not preload libopus-0.dll: {e}")
 
 import sounddevice as sd
 import numpy as np

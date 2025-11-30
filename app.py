@@ -113,7 +113,36 @@ print("Setup complete! Starting application...")
 print("="*70 + "\n")
 
 
-# --- REMOVED: PYOGG PATH HACK ---
+# --- Setup Opus DLL path before importing modules that use opuslib ---
+import ctypes
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Add current directory to DLL search path so opuslib can find opus.dll
+if hasattr(os, 'add_dll_directory'):
+    # Python 3.8+ - recommended way
+    os.add_dll_directory(current_dir)
+else:
+    # Python < 3.8 - add to PATH
+    os.environ['PATH'] = current_dir + os.pathsep + os.environ.get('PATH', '')
+
+# Also try to preload the DLL explicitly
+dll_path = os.path.join(current_dir, "opus.dll")
+if os.path.exists(dll_path):
+    try:
+        ctypes.WinDLL(dll_path)  # load the DLL
+        print("Opus DLL loaded successfully")
+    except Exception as e:
+        print(f"Warning: Could not preload opus.dll: {e}")
+else:
+    # Try libopus-0.dll as alternative
+    alt_dll_path = os.path.join(current_dir, "libopus-0.dll")
+    if os.path.exists(alt_dll_path):
+        try:
+            ctypes.WinDLL(alt_dll_path)
+            print("Alternative Opus DLL (libopus-0.dll) loaded successfully")
+        except Exception as e:
+            print(f"Warning: Could not preload libopus-0.dll: {e}")
+# --- END: Opus DLL Setup ---
 
 
 try:
